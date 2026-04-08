@@ -1,12 +1,7 @@
 from flask import Flask, request, render_template_string, send_file
 from TTS.api import TTS
 from pydub import AudioSegment
-import imageio_ffmpeg as ffmpeg
 import os
-import uuid
-
-# Ensure pydub can find ffmpeg
-AudioSegment.converter = ffmpeg.get_ffmpeg_exe()
 
 app = Flask(__name__)
 tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
@@ -28,32 +23,26 @@ HTML = """
 {% endif %}
 """
 
-def tts_long_text(text, out_path="output.wav", chunk_size=200):
-    """
-    Splits text into chunks to avoid Tacotron2 RuntimeErrors.
-    Returns a single combined audio file.
-    """
-    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-    combined = None
+def tts_long_text(text, out_path="output.wav", chunk_size=300):
+    """Split long text into smaller chunks for TTS."""
+    from tempfile import NamedTemporaryFile
 
-    for i, chunk in enumerate(text_chunks):
-        temp_file = f"temp_{uuid.uuid4()}.wav"
-        tts.tts_to_file(text=chunk, file_path=temp_file)
-        segment = AudioSegment.from_wav(temp_file)
-        if combined:
-            combined += segment
-        else:
-            combined = segment
-        os.remove(temp_file)
-
+    audio_segments = []
+    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    for chunk in chunks:
+        with NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tts.tts_to_file(text=chunk, file_path=tmp.name)
+            audio_segments.append(AudioSegment.from_wav(tmp.name))
+            os.remove(tmp.name)
+    combined = sum(audio_segments)
     combined.export(out_path, format="wav")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     audio_file = None
     if request.method == "POST":
-        text = request.form["text"]
-        if text.strip():
+        text = request.form.get("text", "").strip()
+        if text:
             audio_path = "output.wav"
             tts_long_text(text, out_path=audio_path)
             audio_file = "/audio"
@@ -64,4 +53,5 @@ def serve_audio():
     return send_file("output.wav", mimetype="audio/wav")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
