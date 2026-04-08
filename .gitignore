@@ -1,10 +1,6 @@
-# Ignore Python virtual environment
 venv/
-
-# Ignore Python cache
 __pycache__/
 *.pyc
-*.pyo
-
-# Ignore system files
 .DS_Store
+output.wav
+temp_*.wav
