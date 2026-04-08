@@ -8,7 +8,7 @@ tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
 HTML = """
 <!doctype html>
 <title>TTS</title>
-<h1>Enter text to speak:</h1>
+<h1>Text to speech:</h1>
 <form method="post">
   <textarea name="text" rows="4" cols="50"></textarea><br>
   <input type="submit" value="Speak">
